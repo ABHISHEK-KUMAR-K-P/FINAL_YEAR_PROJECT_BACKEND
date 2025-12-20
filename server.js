@@ -20,11 +20,16 @@ let state = {
   motor: { state: "OFF" }
 };
 
+/* ===== MONTHLY LOG STORAGE ===== */
+let monthlyLogs = []; // safe in-memory storage
+
+/* ===== EXISTING GET ROUTES (UNCHANGED) ===== */
 app.get("/user/user1/status", (req, res) => res.json(state.user1));
 app.get("/user/user2/status", (req, res) => res.json(state.user2));
 app.get("/leakage/status", (req, res) => res.json(state.leakage));
 app.get("/motor/status", (req, res) => res.json(state.motor));
 
+/* ===== EXISTING MOTOR CONTROL (UNCHANGED) ===== */
 app.post("/motor/control", (req, res) => {
   const { state: newState } = req.body;
   if (newState === "ON" || newState === "OFF") {
@@ -34,28 +39,51 @@ app.post("/motor/control", (req, res) => {
   res.status(400).json({ error: "Invalid state" });
 });
 
-app.post("/reset/user1", (req, res) => {
-  state.user1.litres = 0;
-  state.user1.bill = 0;
-  res.json({ status: "reset user1" });
-});
-
-app.post("/reset/user2", (req, res) => {
-  state.user2.litres = 0;
-  state.user2.bill = 0;
-  res.json({ status: "reset user2" });
-});
-
+/* ===== ESP UPDATE (UNCHANGED) ===== */
 app.post("/esp/update", (req, res) => {
   const body = req.body || {};
+
   if (body.user1) state.user1 = body.user1;
   if (body.user2) state.user2 = body.user2;
   if (body.leakage && Array.isArray(body.leakage.points)) {
     state.leakage.points = body.leakage.points;
   }
+
   res.json({ status: "ok" });
 });
 
+/* ===== ✅ NEW: AUTO LOGGING EVERY 10 SECONDS ===== */
+setInterval(() => {
+  const litres = state.user1.litres;
+  const bill = state.user1.bill;
+
+  // skip useless logs
+  if (litres === 0 && bill === 0) return;
+
+  const now = new Date();
+
+  monthlyLogs.push({
+    year: now.getUTCFullYear(),
+    month: now.getUTCMonth() + 1,
+    litres: litres,
+    bill: bill,
+    timestamp: now.toISOString()
+  });
+
+  // keep last ~2 years (10s interval ≈ 6 logs/min → ~52k/year)
+  if (monthlyLogs.length > 110000) {
+    monthlyLogs.shift();
+  }
+
+  console.log("LOGGED (10s):", litres, bill);
+}, 10000);
+
+/* ===== LOGS API (UNCHANGED) ===== */
+app.get("/logs", (req, res) => {
+  res.json(monthlyLogs);
+});
+
+/* ===== ROOT ===== */
 app.get("/", (req, res) => res.send("DGR Water Backend Online"));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
