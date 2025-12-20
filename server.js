@@ -58,7 +58,7 @@ setInterval(() => {
   const bill = state.user1.bill;
 
   // skip useless logs
-  if (litres === 0 && bill === 0) return;
+  //if (litres === 0 && bill === 0) return;
 
   const now = new Date();
 
