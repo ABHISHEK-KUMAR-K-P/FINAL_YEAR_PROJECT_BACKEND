@@ -71,7 +71,7 @@ setInterval(() => {
   });
 
   // keep last ~2 years (10s interval ≈ 6 logs/min → ~52k/year)
-  if (monthlyLogs.length > 110000) {
+  if (monthlyLogs.length > 10) {
     monthlyLogs.shift();
   }
 
